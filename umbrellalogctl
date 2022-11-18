@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+BASE_DIR='/opt/cisco/anyconnect/umbrella'
+
+read -r -d '' USAGE << EGASU
+Usage: `basename $0` [-s|-e|-d|-h]
+
+    -s, --status    Print Umbrella Roaming Security module status
+    -e, --enable    Enable Umbrella Roaming Security module
+    -d, --disable   Disable Umbrella Roaming Security module
+    -h, --help      Show this message.
+EGASU
+
+# Check plugin status, return 0 if enabled, 1 if disabled
+function check_status {
+    [[ -f $PLUGIN_BASE/libacumbrellaapi.dylib ]] &&
+    [[ -f $PLUGIN_BASE/libacumbrellactrl.dylib ]] &&
+    [[ -f $PLUGIN_BASE/libacumbrellaplugin.dylib ]]
+}
+
+# Check if plugin disabled by utility, return 0 if yes, 1 if no
+function verify_plugin_disabled {
+    [[ -f $PLUGIN_BASE/disabled/libacumbrellaapi.dylib ]] &&
+    [[ -f $PLUGIN_BASE/disabled/libacumbrellactrl.dylib ]] &&
+    [[ -f $PLUGIN_BASE/disabled/libacumbrellaplugin.dylib ]]
+}
+
+# Disable plugin
+function disable_plugin {
+    sudo launchctl unload /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
+}
+
+# Enable plugin
+function enable_plugin {
+    sudo launchctl load /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
+}
+
+function enable_swgmaxdebug {
+    sudo cat $BASE_DIR/SWG/SWGConfig.json | awk -F "orgConfig\": " '{print $2}' | awk -F ", \"commonConfig" '{print $1}' | sed "s/}/, \"logLevel\": \"1\" }/g" > $BASE_DIR/data/swg_org_config.flag
+}
+
+case "$1" in
+    '-s'|'--status')
+        check_status &&
+        echo Umbrella Roaming Security Module for AnyConnect is ENABLED. ||
+        echo Umbrella Roaming Security Module for AnyConnect is DISABLED.
+        exit 0
+        ;;
+    '-start'|'--enable')
+        verify_plugin_disabled &&
+        enable_plugin &&
+        echo Umbrella Roaming Security Module for AnyConnect has been ENABLED. &&
+        exit 0 ||
+        echo ERROR: Umbrella Roaming Security Module for AnyConnect can only be enabled if it has previously been disabled by this utility.
+        exit 1
+        ;;
+    '-d'|'--disable')
+        check_status &&
+        disable_plugin &&
+        echo Umbrella Roaming Security Module for AnyConnect has been DISABLED. ||
+        echo ERROR: Umbrella Roaming Security Module for AnyConnect does not appear to be enabled.
+        exit 1
+        ;;
+    '-emaxdebug'|'--enable maxdebug')
+        enable_swgmaxdebug &&
+        echo SWG Max debug logging has ENABLED
+        exit 1
+        ;;
+    '-h'|'--help')
+        echo "$USAGE"
+        exit 0
+        ;;
+    *)
+        echo "$USAGE"
+        exit 1
+        ;;
+esac
+
