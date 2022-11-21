@@ -6,37 +6,30 @@ read -r -d '' USAGE << EGASU
 Usage: `basename $0` [-s|-e|-d|-h]
 
     -s, --status    Print Umbrella Roaming Security module status
-    -e, --enable    Enable Umbrella Roaming Security module
-    -d, --disable   Disable Umbrella Roaming Security module
+    -e, --enable    Enable logging feature
+    -d, --disable   Disable logging feature
+    -u, --up        Start Umbrella Roaming Module
+    -k, --kill      Stop Umbrella Roaming Module
+    -r, --restart   Restart Umbrella Roaming Module
     -h, --help      Show this message.
 EGASU
 
-# Check plugin status, return 0 if enabled, 1 if disabled
-function check_status {
-    [[ -f $PLUGIN_BASE/libacumbrellaapi.dylib ]] &&
-    [[ -f $PLUGIN_BASE/libacumbrellactrl.dylib ]] &&
-    [[ -f $PLUGIN_BASE/libacumbrellaplugin.dylib ]]
-}
-
-# Check if plugin disabled by utility, return 0 if yes, 1 if no
-function verify_plugin_disabled {
-    [[ -f $PLUGIN_BASE/disabled/libacumbrellaapi.dylib ]] &&
-    [[ -f $PLUGIN_BASE/disabled/libacumbrellactrl.dylib ]] &&
-    [[ -f $PLUGIN_BASE/disabled/libacumbrellaplugin.dylib ]]
-}
-
-# Disable plugin
-function disable_plugin {
+# Stop service
+function stop_service {
     sudo launchctl unload /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
 }
 
-# Enable plugin
-function enable_plugin {
+# Start service
+function start_service {
     sudo launchctl load /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
 }
 
 function enable_swgmaxdebug {
     sudo cat $BASE_DIR/SWG/SWGConfig.json | awk -F "orgConfig\": " '{print $2}' | awk -F ", \"commonConfig" '{print $1}' | sed "s/}/, \"logLevel\": \"1\" }/g" > $BASE_DIR/data/swg_org_config.flag
+}
+
+function disable_swgmaxdebug {
+    sudo rm $BASE_DIR/data/swg_org_config.flag 
 }
 
 case "$1" in
@@ -46,24 +39,62 @@ case "$1" in
         echo Umbrella Roaming Security Module for AnyConnect is DISABLED.
         exit 0
         ;;
-    '-start'|'--enable')
-        verify_plugin_disabled &&
-        enable_plugin &&
-        echo Umbrella Roaming Security Module for AnyConnect has been ENABLED. &&
+    '-u'|'--up')
+        start_service &&
+        echo Umbrella Roaming Security Module for AnyConnect has been STARTED. &&
         exit 0 ||
         echo ERROR: Umbrella Roaming Security Module for AnyConnect can only be enabled if it has previously been disabled by this utility.
         exit 1
         ;;
-    '-d'|'--disable')
-        check_status &&
-        disable_plugin &&
-        echo Umbrella Roaming Security Module for AnyConnect has been DISABLED. ||
+    '-k'|'--kill')
+        stop_service &&
+        echo Umbrella Roaming Security Module for AnyConnect has been STOPPED. ||
         echo ERROR: Umbrella Roaming Security Module for AnyConnect does not appear to be enabled.
         exit 1
         ;;
-    '-emaxdebug'|'--enable maxdebug')
-        enable_swgmaxdebug &&
-        echo SWG Max debug logging has ENABLED
+    '-r'|'--restart')
+        stop_service &&
+        echo Umbrella Roaming Security Module for AnyConnect has been STOPPED. &&
+        start_service &&
+        echo Umbrella Roaming Security Module for AnyConnect has been STARTED.
+        exit 0
+        ;;
+    '-e'|'--enable')
+        case "$2" in
+           'swg')
+              enable_swgmaxdebug &&
+              echo SWG Max debug logging has ENABLED
+              exit 1
+              ;;
+           'kdf')
+              echo KDF_PLACEHOLDER_ENABLED
+              exit 1
+              ;;
+            *)
+              echo You did not specified what to enable or this feature does not exist
+              echo "$USAGE"
+              exit 1
+              ;;
+        esac
+        exit 1
+        ;;
+    '-d'|'--disable')
+         case "$2" in
+           'swg')
+              disable_swgmaxdebug &&
+              echo SWG Max debug logging has DISABLED
+              exit 1
+              ;;
+           'kdf')
+              echo KDF_PLACEHOLDER_DISABLED
+              exit 1
+              ;; 
+            *)
+              echo You did not specified what to disable or this feature does not exist
+              echo "$USAGE"
+              exit 1 
+              ;;
+        esac
         exit 1
         ;;
     '-h'|'--help')
