@@ -24,12 +24,23 @@ function start_service {
     sudo launchctl load /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
 }
 
+# Enable SWG Max debug logging
 function enable_swgmaxdebug {
     sudo cat $BASE_DIR/SWG/SWGConfig.json | awk -F "orgConfig\": " '{print $2}' | awk -F ", \"commonConfig" '{print $1}' | sed "s/}/, \"logLevel\": \"1\" }/g" > $BASE_DIR/data/swg_org_config.flag
 }
 
+# Disable SWG Max Debug Logging
 function disable_swgmaxdebug {
     sudo rm $BASE_DIR/data/swg_org_config.flag 
+}
+
+function verify_swgmaxdebug {
+    swglogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.swg"||senderImagePath endswith "acswgagent"' --debug --info --last 5m)
+    if [[ $swglogout == *"Hostnames from KDF are"* ]]; then
+        echo "Looks like SWG Max debug logging enabled and we see web redirection events"
+    else
+        echo "No events available, check if SWG max debug logging is enabled"
+    fi    
 }
 
 case "$1" in
@@ -93,6 +104,24 @@ case "$1" in
               echo You did not specified what to disable or this feature does not exist
               echo "$USAGE"
               exit 1 
+              ;;
+        esac
+        exit 1
+        ;;
+'-v'|'--verify')
+         case "$2" in
+           'swg')   
+              verify_swgmaxdebug &&
+              exit 1
+              ;;
+           'kdf')
+              echo KDF_PLACEHOLDER_VERIFY
+              exit 1
+              ;;
+            *)  
+              echo You did not specified what to verify or this feature does not exist
+              echo "$USAGE"
+              exit 1
               ;;
         esac
         exit 1
