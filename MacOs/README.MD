@@ -15,6 +15,7 @@ sudo chmod +x ./umbrellalogctl
 
 Run with sudo rights
 
+```
 Usage: umbrellalogctl [-s|-e|-e swg|-e kdf|-d|-d swg|-d kdf|-l|-u|-r|-h]  
     -s, --status      Print Anyconnect service status and logging enabled  
     -e, --enable      Enable logging feature  
@@ -27,6 +28,7 @@ Usage: umbrellalogctl [-s|-e|-e swg|-e kdf|-d|-d swg|-d kdf|-l|-u|-r|-h]
     -u, --unload      Unload/Unregister Anyconect service  
     -r, --restart     Reload/Restart Umbrella Roaming Module  
     -h, --help        Show this message.  
+```
 
 
 Example scenario:  
