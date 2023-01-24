@@ -1,12 +1,13 @@
 function Enable-SWGMaxDebug {
 	<#
         .SYNOPSIS
-        Enables max debug logging for Cisco AnyConnect SWG module .
+        Enables max debug logging for Cisco AnyConnect/Secure Client Umbrella SWG module .
 
         .DESCRIPTION
 		Copies the contents of the "orgConfig" object from the SWGConfig.json file to the "swg_org_config.flag" file.
         Adds "logLevel": "1" value to the "orgConfig" object.
-		Saves file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\SWG
+		Saves file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or 
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
 
         .EXAMPLE
         PS> Enable-SWGMaxDebug
@@ -14,21 +15,27 @@ function Enable-SWGMaxDebug {
 		.LINK
 		https://support.umbrella.com/hc/en-us/articles/360043386131-Cisco-AnyConnect-SWG-How-to-enable-the-max-debug-logging
 		#>
-	$swgconfig = [IO.File]::ReadAllText("C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\SWG\SWGConfig.json")
-	$swgconfig = Get-Content "C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\SWG\SWGConfig.json" -Raw | ConvertFrom-Json
+	$clienttype = Detect-Client
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	Write-Output "+ Installed client is $clienttype" 
+	$swgconfig = Get-Content "C:\ProgramData\Cisco\$clienttype\Umbrella\SWG\SWGConfig.json" -Raw | ConvertFrom-Json
 	$swgconfig.orgConfig | Add-Member -Name 'logLevel' -MemberType NoteProperty -Value '1' -Force
-	$swgconfig.orgConfig | ConvertTo-Json -depth 100 | Out-File "C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data\swg_org_config.flag" -Force
-	Write-Output "- SWG maximum debug logging enabled"
+	$swgconfig.orgConfig | ConvertTo-Json -depth 100 | Out-File "C:\ProgramData\Cisco\$clienttype\Umbrella\data\swg_org_config.flag" -Force
+	Write-Output "+ SWG maximum debug logging enabled"
 	Write-Output $swgconfig.orgConfig
+	return 0
 }
 
 function Disable-SWGMaxDebug {
 	<#
         .SYNOPSIS
-        Disables max debug logging for Cisco AnyConnect SWG module .
+        Disables max debug logging for Cisco AnyConnect/Secure Umbrella Client SWG module .
 
         .DESCRIPTION
-		Removes file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\SWG
+		Removes file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
 
         .EXAMPLE
         PS> Disable-SWGMaxDebug
@@ -36,8 +43,13 @@ function Disable-SWGMaxDebug {
 		.LINK
 		https://support.umbrella.com/hc/en-us/articles/360043386131-Cisco-AnyConnect-SWG-How-to-enable-the-max-debug-logging
 		#>
+	$clienttype = Detect-Client
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	Write-Output "+ Installed client is $clienttype" 
 	Try {
-    Remove-Item -Path "C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data\swg_org_config.flag" -ErrorAction Stop
+    Remove-Item -Path "C:\ProgramData\Cisco\$clienttype\Umbrella\data\swg_org_config.flag" -ErrorAction Stop
 	Write-Output "- SWG maximum debug logging disabled"
 }
 	Catch {
@@ -107,9 +119,9 @@ function Restart-AC {
 	Stop-Service vpnagent
 	Stop-Service acsock
 	Start-Service vpnagent
-	Write-Output "- AC vpnagent service restarted"
+	Write-Output "+ Anyconnect/Secure Client vpnagent service restarted"
 	Start-Service acsock
-	Write-Output "- AC acsock service restarted"
+	Write-Output "+ Anyconnect/Secure Client acsock service restarted"
 	
 }
 
@@ -198,5 +210,18 @@ function Verify-WPFLogging {
 		#>
 $wpfevents = Get-EventLog -LogName "Security" -InstanceId 5157,5152 -Newest 50
 $wpfevents | Select-Object -Property TimeGenerated,Message | Format-List
+}
+
+function Detect-Client {
+
+	If (Test-Path -Path "C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\SWG\SWGConfig.json") {
+		return "Cisco AnyConnect Secure Mobility Client"
+		}
+	elseif (Test-Path -Path "C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\SWG\SWGConfig.json") {
+		return "Cisco Secure Client"
+		}
+	else {Write-Output "No SWG Config found"
+	      return "NoClient"
+	}
 }
 
