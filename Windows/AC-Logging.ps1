@@ -225,3 +225,38 @@ function Detect-Client {
 	}
 }
 
+function Add-ExternalDomain ($domain) {
+	<#
+        .SYNOPSIS
+        Add domain or ip address to exception list
+
+        .DESCRIPTION
+		Copies the contents of the "orgConfig" object from the SWGConfig.json file to the "swg_org_config.flag" file.
+        Adds domain value to the "exceptionList" object.
+		Saves file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or 
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
+
+        .EXAMPLE
+        PS> Add-ExternalDomain test.com
+		
+		.LINK
+		https://support.umbrella.com/hc/en-us/articles/360043386131-Cisco-AnyConnect-SWG-How-to-enable-the-max-debug-logging
+		#>
+	$clienttype = Detect-Client
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	Write-Output "+ Installed client is $clienttype" 
+	$swgconfig = Get-Content "C:\ProgramData\Cisco\$clienttype\Umbrella\SWG\SWGConfig.json" -Raw | ConvertFrom-Json
+	If ($domain -eq $null) { 
+		return "No domain specified"
+		} 
+	else {	
+		$exceptionList = $swgconfig.orgConfig.exceptionList += $domain
+		$swgconfig.orgConfig.exceptionList = $exceptionlist
+		#$swgconfig.orgConfig.exceptionList.Add("120.130.120.130")
+		$swgconfig.orgConfig | ConvertTo-Json -depth 100 | Out-File "C:\ProgramData\Cisco\$clienttype\Umbrella\data\swg_org_config.flag" -Force
+		Write-Output $swgconfig.orgConfig.exceptionList
+		return $domain + " was added succesfully"
+	}
+}
