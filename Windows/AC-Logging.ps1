@@ -116,13 +116,27 @@ function Restart-AC {
         PS> Restart-AC
 		
 		#>
-	Stop-Service vpnagent
-	Stop-Service acsock
-	Start-Service vpnagent
-	Write-Output "+ Anyconnect/Secure Client vpnagent service restarted"
-	Start-Service acsock
-	Write-Output "+ Anyconnect/Secure Client acsock service restarted"
-	
+	$clienttype = Detect-Client
+	Write-Output "+ Installed client is $clienttype"
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	elseif ($clienttype -eq "Cisco Secure Client") {
+		Stop-Service csc_vpnagent
+		Stop-Service acsock
+		Start-Service csc_vpnagent
+		Write-Output "+ Secure Client csc_vpnagent service restarted"
+		Start-Service acsock
+		Write-Output "+ Secure Client acsock service restarted"
+	}
+	elseif ($clienttype -eq "Cisco AnyConnect Secure Mobility Client") {		
+		Stop-Service vpnagent
+		Stop-Service acsock
+		Start-Service vpnagent
+		Write-Output "+ Anyconnect vpnagent service restarted"
+		Start-Service acsock
+		Write-Output "+ Anyconnect acsock service restarted"
+	}
 }
 
 function Verify-SWGMaxDebug {
