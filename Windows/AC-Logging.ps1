@@ -153,7 +153,18 @@ function Verify-SWGMaxDebug {
         PS> Verify-SWGMaxDebug
 		
 		#>
-	$events = Get-EventLog -LogName "Cisco AnyConnect Umbrella Roaming Security Module" -Source acswgagent -Newest 50
+	
+	$clienttype = Detect-Client
+	Write-Output "+ Installed client is $clienttype"
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	elseif ($clienttype -eq "Cisco Secure Client") {
+		$events = Get-EventLog -LogName "Cisco Secure Client - Umbrella" -Source csc_swgagent -Newest 50
+	}
+	elseif ($clienttype -eq "Cisco AnyConnect Secure Mobility Client") {		
+		$events = Get-EventLog -LogName "Cisco AnyConnect Umbrella Roaming Security Module" -Source acswgagent -Newest 50
+	}
 	If ($events | Select-String -InputObject {$_.message} -Pattern 'Resolved IP from', 'Hostnames from KDF are', 'Connecting to 146.112') { 
 		Write-Output "Looks like SWG Max debug logging enabled and we see web traffic redirection events"
 		Write-Output "Here is last 50 events from event log"
