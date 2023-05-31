@@ -75,7 +75,7 @@ function verify_kdf {
     fi
     echo " "
     echo "You can run next command to manually verify if we see KDF logs:"
-    echo log show --predicate \'subsystem contains \"com.cisco.anyconnect.acsock\"\' --debug --info --last 5m
+    echo "log show --predicate 'subsystem contains \"com.cisco.anyconnect.acsock\"' --debug --info --last 5m"
 }
 
 function verify_swgmaxdebug {
@@ -92,7 +92,7 @@ function verify_swgmaxdebug {
     fi
     echo " "    
     echo "You can run next command to manually verify if we see SWG maximum debug logs:"
-    echo log show --predicate \'subsystem contains \"com.cisco.anyconnect.swg\"||senderImagePath endswith \"acswgagent\"\' --debug --info --last 5m
+    echo "log show --predicate 'subsystem contains \"com.cisco.anyconnect.swg\"||senderImagePath endswith \"acswgagent\"' --debug --info --last 5m"
 }
 
 case "$1" in
