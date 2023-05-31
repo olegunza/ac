@@ -285,3 +285,87 @@ function Add-ExternalDomain ($domain) {
 		return $domain + " was added succesfully"
 	}
 }
+
+function Add-TestNode($ipaddress) {
+	<#
+        .SYNOPSIS
+        Points Anyconnect to explicitly to particular ip address of the node in particular DC.
+
+        .DESCRIPTION
+		Copies the contents of the "orgConfig" object from the SWGConfig.json file to the "swg_org_config.flag" file.
+        Sets "swgAnycast":  value to the desired ip address.
+		Sets "swgDomain" value to the desired ip address.
+		Saves file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or 
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
+
+        .EXAMPLE
+        PS>Add-TestNode 146.12.49.130
+		
+		.LINK
+		
+		#>
+	$clienttype = Detect-Client
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	Write-Output "+ Installed client is $clienttype" 
+	$swgconfig = Get-Content "C:\ProgramData\Cisco\$clienttype\Umbrella\SWG\SWGConfig.json" -Raw | ConvertFrom-Json
+	$swgconfig.orgConfig.swgAnycast = $ipaddress
+	$swgconfig.orgConfig.swgDomain = $ipaddress
+	$swgconfig.orgConfig | ConvertTo-Json -depth 100 | Out-File "C:\ProgramData\Cisco\$clienttype\Umbrella\data\swg_org_config.flag" -Force
+	Write-Output $swgconfig.orgConfig
+	return $ipaddress + ' was configured succesfully. Restart the agent now to apply changes'
+}
+
+function Remove-TestNode {
+	<#
+        .SYNOPSIS
+        Removes configuration swg_org_config.flag.
+
+        .DESCRIPTION
+		Removes file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
+
+        .EXAMPLE
+        PS> Remove-TestNode
+		
+		.LINK
+		
+		#>
+	$clienttype = Detect-Client
+	If ($clienttype -eq "NoClient"){
+		return "No client detected"
+	}
+	Write-Output "+ Installed client is $clienttype" 
+	Try {
+    Remove-Item -Path "C:\ProgramData\Cisco\$clienttype\Umbrella\data\swg_org_config.flag" -ErrorAction Stop
+	Write-Output "- swg_org_config.flag removed and config is restored"
+}
+	Catch {
+    Write-Warning "There is no configuration to remove : $($_.Exception.Message)"
+}
+	
+}
+
+function Show-TestNode {
+	<#
+        .SYNOPSIS
+        Removes configuration swg_org_config.flag.
+
+        .DESCRIPTION
+		Removes file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or
+		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
+
+        .EXAMPLE
+        PS> Remove-TestNode
+		
+		.LINK
+		
+		#>
+	
+	$request = Invoke-WebRequest -Uri "https://policy-debug.checkumbrella.com" -UseBasicParsing
+	$lines = $request.Content.Split([Environment]::NewLine)
+	$dc = $lines | Select-String "DC Location:"
+	return $dc 
+	
+}
