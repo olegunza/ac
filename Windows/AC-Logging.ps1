@@ -289,7 +289,7 @@ function Add-ExternalDomain ($domain) {
 function Add-TestNode($ipaddress) {
 	<#
         .SYNOPSIS
-        Points Anyconnect to explicitly to particular ip address of the node in particular DC.
+        Points Anyconnect explicitly to particular ip address of the node in particular DC.
 
         .DESCRIPTION
 		Copies the contents of the "orgConfig" object from the SWGConfig.json file to the "swg_org_config.flag" file.
@@ -350,14 +350,13 @@ function Remove-TestNode {
 function Show-TestNode {
 	<#
         .SYNOPSIS
-        Removes configuration swg_org_config.flag.
+        Launches web-request to https://policy-debug.checkumbrella.com and show DC and node through which request was served
 
         .DESCRIPTION
-		Removes file swg_org_config.flag in C:\ProgramData\Cisco\Cisco AnyConnect Secure Mobility Client\Umbrella\data or
-		C:\ProgramData\Cisco\Cisco Secure Client\Umbrella\data
+		Launches web-request to https://policy-debug.checkumbrella.com and show DC and node through which request was served
 
         .EXAMPLE
-        PS> Remove-TestNode
+        PS> Show-TestNode
 		
 		.LINK
 		
