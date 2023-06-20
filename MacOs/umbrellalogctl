@@ -1,43 +1,55 @@
 #!/usr/bin/env bash
 
-BASE_DIR='/opt/cisco/anyconnect/umbrella'
-AC_BASE_DIR='/opt/cisco/anyconnect'
+
+if test -f '/opt/cisco/anyconnect/umbrella/OrgInfo.json'; then
+    BASE_DIR='/opt/cisco/anyconnect/umbrella'
+    AC_BASE_DIR='/opt/cisco/anyconnect'
+    CLIENT='anyconnect'
+elif test -f '/opt/cisco/secureclient/umbrella/OrgInfo.json'; then
+    BASE_DIR='/opt/cisco/secureclient/umbrella'
+    AC_BASE_DIR='/opt/cisco/secureclient'
+    CLIENT='secureclient'
+else
+    echo "You don't have either Anyconnnect or Secure Client installed"
+    exit 1
+fi
+
 debug_flags=$3
 
 read -r -d '' USAGE << EGASU
 Usage: `basename $0` [-s|-e|-e swg|-e kdf|-d|-d swg|-d kdf|-l|-u|-r|-h]
 
-    -s, --status      Print Anyconnect service status and logging enabled
+    -s, --status      Print Anyconnect/Secure Client service status and types of logging enabled
     -e, --enable      Enable logging feature
         --enable swg  Enable SWG maximum debug logging
         --enable kdf 0xffffffff Enable KDF debug logging with debug flags set to 0xffffffff 
     -d, --disable     Disable logging feature
         --disable swg Disable SWG maximum debug logging
         --disable kdf Disable KDF debug logging
-    -l, --load        Load/Register Anyconnect service
-    -u, --unload      Unload/Unregister Anyconect service
+    -l, --load        Load/Register Anyconnect/Secure Client service
+    -u, --unload      Unload/Unregister Anyconect/Secure Client service
     -r, --restart     Reload/Restart Umbrella Roaming Module
     -h, --help        Show this message.
 EGASU
 
 # Check status of the service
 function check_status {
-    acstatus=$(launchctl print system/com.cisco.anyconnect.vpnagentd)
+    acstatus=$(launchctl print system/com.cisco.$CLIENT.vpnagentd)
     if [[ $acstatus == *"state = running"* ]]; then
-        echo "+ Anyconnect service is ENABLED and RUNNING"
+        echo "+ $CLIENT service is ENABLED and RUNNING"
     else
-        echo "- Anyconnect service DISABLED"
+        echo "- $CLIENT service DISABLED"
     fi
 }
 
 # Stop service
 function stop_service {
-    sudo launchctl unload /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
+    sudo launchctl unload /Library/LaunchDaemons/com.cisco.$CLIENT.vpnagentd.plist
 }
 
 # Start service
 function start_service {
-    sudo launchctl load /Library/LaunchDaemons/com.cisco.anyconnect.vpnagentd.plist
+    sudo launchctl load /Library/LaunchDaemons/com.cisco.$CLIENT.vpnagentd.plist
 }
 
 # Enable SWG Max debug logging
@@ -53,21 +65,32 @@ function disable_swgmaxdebug {
 # Enable KDF logs
 function enable_kdf {
     [ -z "$debug_flags" ] && echo "WARNING!!! Debug flags are empty, no KDF logging will be active"
-    echo debug=$debug_flags | sudo tee $AC_BASE_DIR/acsock.cfg
+    if [[ $CLIENT == "anyconnect" ]]; then
+        echo debug=$debug_flags | sudo tee $AC_BASE_DIR/acsock.cfg
+    elif [[ $CLIENT == "secureclient" ]]; then
+        echo debug=$debug_flags | sudo tee $AC_BASE_DIR/kdf/acsock.cfg
+    fi
 }
 
 # Disable KDF logs
 function disable_kdf {
     sudo rm $AC_BASE_DIR/acsock.cfg
+    sudo rm $AC_BASE_DIR/kdf/acsock.cfg
 }
 
 function verify_kdf {
     if test -f $AC_BASE_DIR/acsock.cfg; then
        echo "+ KDF debug flags file found"
+    elif test -f $AC_BASE_DIR/kdf/acsock.cfg; then
+        echo "+ KDF debug flags file found"
     else
        echo "- KDF debug flags file does not exist"
-    fi  
-    kdflogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.acsock"' --debug --info --last 5m)
+    fi
+    if [[ $CLIENT == "anyconnect" ]]; then 
+        kdflogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.acsock"' --debug --info --last 5m)
+    elif [[ $CLIENT == "secureclient" ]];then
+        kdflogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.acsock"' --debug --info --last 5m)
+    fi
     if [[ $kdflogout == *"CSocketScanSafePluginImp::notify_recv"* ]]; then
         echo "+ Looks like KDF Logs enabled and we see web redirection events"
     else
@@ -83,8 +106,12 @@ function verify_swgmaxdebug {
        echo "+ swg_org_config.flag found"
     else
        echo "- swg_org_config.flag does not exist"
-    fi 
-    swglogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.swg"||senderImagePath endswith "acswgagent"' --debug --info --last 5m)
+    fi
+    if [[ $CLIENT == "anyconnect" ]]; then 
+        swglogout=$(log show --predicate 'subsystem contains "com.cisco.anyconnect.swg"||senderImagePath endswith "acswgagent"' --debug --info --last 5m)
+    elif [[ $CLIENT == "secureclient" ]];then
+        swglogout=$(log show --predicate 'subsystem contains "com.cisco.secureclient.swg"||senderImagePath endswith "csc_swgagent"' --debug --info --last 5m)
+    fi
     if [[ $swglogout == *"Hostnames from KDF are"* ]]; then
         echo "+ Looks like SWG Max debug logging enabled and we see web redirection events"
     else
@@ -92,7 +119,11 @@ function verify_swgmaxdebug {
     fi
     echo " "    
     echo "You can run next command to manually verify if we see SWG maximum debug logs:"
-    echo "log show --predicate 'subsystem contains \"com.cisco.anyconnect.swg\"||senderImagePath endswith \"acswgagent\"' --debug --info --last 5m"
+    if [[ $CLIENT == "anyconnect" ]]; then
+        echo "log show --predicate 'subsystem contains \"com.cisco.anyconnect.swg\"||senderImagePath endswith \"acswgagent\"' --debug --info --last 5m"
+    elif [[ $CLIENT == "secureclient" ]];then
+        echo "log show --predicate 'subsystem contains \"com.cisco.secureclient.swg\"||senderImagePath endswith \"csc_swgagent\"' --debug --info --last 5m"
+    fi
 }
 
 case "$1" in
@@ -104,23 +135,23 @@ case "$1" in
         ;;
     '-l'|'--load')
         start_service &&
-        echo AnyConnect service has been STARTED. &&
+        echo $CLIENT service has been STARTED. &&
         exit 0 ||
-        echo ERROR: Anyconnect service can only be enabled if it has 
+        echo ERROR: $CLIENT service can only be enabled if it has 
 previously been disabled by this utility.
         exit 1
         ;;
     '-u'|'--unload')
         stop_service &&
-        echo Anyconnect service has been STOPPED. ||
-        echo ERROR: Anyconnect servicedoes not appear to be enabled.
+        echo $CLIENT service has been STOPPED. ||
+        echo ERROR: $CLIENT service does not appear to be enabled.
         exit 1
         ;;
     '-r'|'--restart')
         stop_service &&
-        echo AnyConnect service has been STOPPED. &&
+        echo $CLIENT service has been STOPPED. &&
         start_service &&
-        echo AnyConnect has been STARTED.
+        echo $CLIENT has been STARTED.
         exit 0
         ;;
     '-e'|'--enable')
